@@ -34,11 +34,25 @@
 #define MODE_PIN    (16)
 #define MODE_MAX    (6)
 
+/*
+        // else if (events & GPIO_IRQ_EDGE_RISE) {
+        //     if (led_pressed == true) {
+        //         led_pattern++;
+        //         if (led_pattern == led_pattern_max) {
+        //             led_pattern = 0;
+        //         }
+        //         button_interrupt = true;
+        //         led_pressed = false;
+        //     }
+        // }
+    }
+*/
+
 // Operating data.
-static volatile bool    led_pressed = false;            // Tracks when the button is pushed.
-static volatile bool    button_interrupt = false;       // Toggled when the button is pressed and released.
-static volatile int     led_pattern = 0;                // Which pattern is being displayed.
-static const int        led_pattern_max = MODE_MAX;     // The maxmimum pattern code.
+static volatile bool            led_pressed = false;            // Tracks when the button is pushed.
+static volatile int             led_pattern = 0;                // Which pattern is being displayed.
+static const int                led_pattern_max = MODE_MAX;     // The maxmimum pattern code.
+static volatile absolute_time_t led_interrupt_start;            // Start of the last interrupt.    
 
 /**
  * @brief Format a RGBw value to a pixel.
@@ -92,9 +106,22 @@ static void led_array_set(uint32_t *array, size_t array_size, uint32_t colour) {
 static bool get_interrupted(void) {
     bool ret;
 
-    ret = button_interrupt;
-    if (ret) {
-        button_interrupt = false;
+    if ((ret = led_pressed) == true) {
+        led_pattern++;
+        if (led_pattern == led_pattern_max) {
+            led_pattern = 0;
+        }
+        // Release the interrupt.
+        led_interrupt_start = get_absolute_time();
+        led_pressed = false;
+    }
+
+    // If the "start" event time is set, check if the event has expired.
+    else if (led_interrupt_start != 0) {
+        int64_t tDiff = absolute_time_diff_us(led_interrupt_start, get_absolute_time());
+        if (tDiff > 500000) {
+            led_interrupt_start = 0;
+        }
     }
     return ret;
 }
@@ -107,20 +134,11 @@ static bool get_interrupted(void) {
  */
 void gpio_callback(uint gpio, uint32_t events) {
 
-    if (events & 0x04) {
-        // Adjust the LED mode.
-        if (led_pressed == false) {
+    // Only process new button presses if the previous event was consumed.
+    if (led_pressed == false && led_interrupt_start == 0) {
+        if (events & GPIO_IRQ_LEVEL_LOW) {
+            led_interrupt_start = get_absolute_time();
             led_pressed = true;
-        }
-    }
-    else if (events & 0x08) {
-        if (led_pressed == true) {
-            led_pattern++;
-            if (led_pattern == led_pattern_max) {
-                led_pattern = 0;
-            }
-            button_interrupt = true;
-            led_pressed = false;
         }
     }
 }
@@ -405,9 +423,9 @@ int main() {
     // Setup STDIO and tell the console what's going on.
     stdio_init_all();
 
-    // Setup GPIO16 as a mode switch.
+    // Setup GPIO16 as a mode switch - GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL
     gpio_init(MODE_PIN);
-    gpio_set_irq_enabled_with_callback(MODE_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &gpio_callback);
+    gpio_set_irq_enabled_with_callback(MODE_PIN, GPIO_IRQ_LEVEL_LOW, true, &gpio_callback);
     
     // This will find a free pio and state machine for our program and load it for us
     // We use pio_claim_free_sm_and_add_program_for_gpio_range (for_gpio_range variant)

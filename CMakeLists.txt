@@ -54,4 +54,8 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_LIST_DIR}/generated/ws2812.py
         VERBATIM)
 add_dependencies(pio_ws2812 pio_ws2812_datasheet)
 
+# Tell the pico to send UART over USB and NOT to the UART pins.
+pico_enable_stdio_usb(pio_ws2812 0)
+pico_enable_stdio_uart(pio_ws2812 1)
+
 # End.
