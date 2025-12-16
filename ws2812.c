@@ -32,27 +32,26 @@
 #define NUM_PAGES   (NUM_PIXELS / NUM_PERPAGE)
 #define LED_PIN     (28)
 #define MODE_PIN    (16)
-#define MODE_MAX    (6)
 
-/*
-        // else if (events & GPIO_IRQ_EDGE_RISE) {
-        //     if (led_pressed == true) {
-        //         led_pattern++;
-        //         if (led_pattern == led_pattern_max) {
-        //             led_pattern = 0;
-        //         }
-        //         button_interrupt = true;
-        //         led_pressed = false;
-        //     }
-        // }
-    }
-*/
+/**
+ * @brief Mode descriptions.
+ * 
+ */
+typedef enum string_mode_e {
+    MODE_CHASE_THREE = 0,
+    MODE_CROSS_FADE_ONE,
+    MODE_CHASE_THREE_SLOW,
+    MODE_CROSS_FADE_TWO,
+    MODE_COLOUR_CHASE_BLACK,
+    MODE_COLOUR_CHASE_COLOUR,
+    MODE_END
+    
+} STRING_MODE_t;
 
 // Operating data.
 static volatile bool            led_pressed = false;            // Tracks when the button is pushed.
 static volatile int             led_pattern = 0;                // Which pattern is being displayed.
-static const int                led_pattern_max = MODE_MAX;     // The maxmimum pattern code.
-static volatile absolute_time_t led_interrupt_start;            // Start of the last interrupt.    
+static volatile absolute_time_t led_interrupt_start;            // Start of the last interrupt.
 
 /**
  * @brief Format a RGBw value to a pixel.
@@ -108,7 +107,7 @@ static bool get_interrupted(void) {
 
     if ((ret = led_pressed) == true) {
         led_pattern++;
-        if (led_pattern == led_pattern_max) {
+        if (led_pattern == MODE_END) {
             led_pattern = 0;
         }
         // Release the interrupt.
@@ -223,7 +222,7 @@ static void fade_three(PIO pio, int sm, uint32_t *array, size_t array_size, uint
 }
 
 /**
- * @brief 
+ * @brief Step the position of a sequence of three LEDs around the array.
  * 
  * @param pio PIO handle.
  * @param sm State machine id.
@@ -460,27 +459,27 @@ int main() {
 
                 printf("led mode %d\n", led_pattern);
                 switch(led_pattern) {
-                    case 0:
+                    case MODE_CHASE_THREE:
                         // Tripple chaser with 100ms separation.
                         walk_three(pio, sm, led_array, NUM_PIXELS, 100);
                         break;
-                    case 1:
+                    case MODE_CROSS_FADE_ONE:
                         // Slow fade over 3 seconds.
                         fade_three(pio, sm, led_array, NUM_PIXELS, 255, 0, 127, 3000, 1);
                         break;
-                    case 2:
+                    case MODE_CHASE_THREE_SLOW:
                         // Tripple chaser with 200ms separation.
                         walk_three(pio, sm, led_array, NUM_PIXELS, 200);
                         break;
-                    case 3:
+                    case MODE_CROSS_FADE_TWO:
                         // Quick pulse with 3 second duration.
                         fade_three(pio, sm, led_array, NUM_PIXELS, 255, 0, 127, 3000, 2);
                         break;
-                    case 4:
+                    case MODE_COLOUR_CHASE_BLACK:
                         // Colour chaser.
                         chase_colour(pio, sm, led_array, NUM_PIXELS, 30, false);
                         break;
-                    case 5:
+                    case MODE_COLOUR_CHASE_COLOUR:
                         // Colour chaser.
                         chase_colour(pio, sm, led_array, NUM_PIXELS, 30, true);
                         break;
