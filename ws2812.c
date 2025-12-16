@@ -478,11 +478,11 @@ int main() {
                         break;
                     case 4:
                         // Colour chaser.
-                        chase_colour(pio, sm, led_array, NUM_PIXELS, 100, false);
+                        chase_colour(pio, sm, led_array, NUM_PIXELS, 30, false);
                         break;
                     case 5:
                         // Colour chaser.
-                        chase_colour(pio, sm, led_array, NUM_PIXELS, 100, true);
+                        chase_colour(pio, sm, led_array, NUM_PIXELS, 30, true);
                         break;
                 }
             }
